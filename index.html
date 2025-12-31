@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Eclipse Awareness Widget</title>
+
+<style>
+  body {
+    background-color: #0b0d0c;
+    color: #e6e2d6;
+    font-family: Georgia, serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    text-align: center;
+  }
+
+  .container {
+    width: 420px;
+    padding: 22px 26px;
+    opacity: 0;
+    animation: fadeIn 1.6s ease forwards;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .label {
+    font-size: 0.75em;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    opacity: 0.65;
+    margin-bottom: 10px;
+  }
+
+  .title {
+    font-size: 1.05em;
+    line-height: 1.45;
+    margin-top: 6px;
+    margin-bottom: 10px;
+  }
+
+  .meta {
+    font-size: 0.9em;
+    opacity: 0.75;
+    line-height: 1.55;
+    white-space: pre-line;
+  }
+
+  .tiny {
+    font-size: 0.82em;
+    opacity: 0.55;
+    margin-top: 10px;
+  }
+</style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="label">Eclipse Awareness</div>
+    <div class="title" id="headline"></div>
+    <div class="meta" id="details"></div>
+    <div class="tiny" id="tiny"></div>
+  </div>
+
+  <script>
+    const TZ = "Australia/Brisbane";
+    const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+    // Worldwide dates, anchored as UTC date markers
+    const ECLIPSES = [
+      { date: "2026-02-17", kind: "Solar", subtype: "Annular" },
+      { date: "2026-03-03", kind: "Lunar", subtype: "Total" },     // Mar 2–3, anchored to Mar 3
+      { date: "2026-08-12", kind: "Solar", subtype: "Total" },
+      { date: "2026-08-28", kind: "Lunar", subtype: "Partial" }    // Aug 27–28, anchored to Aug 28
+    ];
+
+    function getYMDInTZ(date, timeZone) {
+      const parts = new Intl.DateTimeFormat("en-AU", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      }).formatToParts(date);
+      const map = {};
+      for (const p of parts) map[p.type] = p.value;
+      return { y: Number(map.year), m: Number(map.month), d: Number(map.day) };
+    }
+
+    function parseISODateToUTCNoon(isoDate) {
+      const [yy, mm, dd] = isoDate.split("-").map(Number);
+      return new Date(Date.UTC(yy, mm - 1, dd, 12, 0, 0));
+    }
+
+    function fmtDateInTZ(dateObj) {
+      return new Intl.DateTimeFormat("en-AU", {
+        timeZone: TZ,
+        year: "numeric",
+        month: "short",
+        day: "2-digit"
+      }).format(dateObj);
+    }
+
+    function daysUntil(fromUTCNoon, toUTCNoon) {
+      return Math.ceil((toUTCNoon.getTime() - fromUTCNoon.getTime()) / MS_PER_DAY);
+    }
+
+    (function render() {
+      const now = new Date();
+      const { y, m, d } = getYMDInTZ(now, TZ);
+      const todayUTCNoon = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+
+      const upcoming = ECLIPSES.map(e => {
+        const dateObj = parseISODateToUTCNoon(e.date);
+        return { ...e, dateObj, inDays: daysUntil(todayUTCNoon, dateObj) };
+      }).filter(e => e.inDays >= 0).sort((a,b) => a.dateObj - b.dateObj);
+
+      const nextOverall = upcoming[0];
+      const nextSolar = upcoming.find(e => e.kind === "Solar");
+      const nextLunar = upcoming.find(e => e.kind === "Lunar");
+
+      if (!nextOverall) {
+        document.getElementById("headline").innerText = "No upcoming eclipses in this list";
+        document.getElementById("details").innerText = "Add next year’s eclipse dates when you’re ready.";
+      } else {
+        document.getElementById("headline").innerText =
+          "Next: " + nextOverall.subtype + " " + nextOverall.kind + " Eclipse";
+
+        const lines = [];
+        lines.push("Date: " + fmtDateInTZ(nextOverall.dateObj));
+        lines.push("In: " + nextOverall.inDays + " days");
+
+        if (nextSolar) {
+          lines.push("");
+          lines.push("Next Solar: " + nextSolar.subtype);
+          lines.push("Date: " + fmtDateInTZ(nextSolar.dateObj) + " · " + nextSolar.inDays + " days");
+        }
+
+        if (nextLunar) {
+          lines.push("");
+          lines.push("Next Lunar: " + nextLunar.subtype);
+          lines.push("Date: " + fmtDateInTZ(nextLunar.dateObj) + " · " + nextLunar.inDays + " days");
+        }
+
+        lines.push("");
+        lines.push("Visibility varies by location");
+
+        document.getElementById("details").innerText = lines.join("\n");
+      }
+
+      document.getElementById("tiny").innerText =
+        new Intl.DateTimeFormat("en-AU", {
+          timeZone: TZ,
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric"
+        }).format(now) + " · " + TZ;
+    })();
+  </script>
+</body>
+</html>
