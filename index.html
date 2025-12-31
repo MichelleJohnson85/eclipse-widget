@@ -50,33 +50,24 @@
     line-height: 1.55;
     white-space: pre-line;
   }
-
-  .tiny {
-    font-size: 0.82em;
-    opacity: 0.55;
-    margin-top: 10px;
-  }
 </style>
 </head>
 
 <body>
   <div class="container">
-    <div class="label">Eclipse Awareness</div>
+    <div class="label">Eclipse Awareness, Brisbane</div>
     <div class="title" id="headline"></div>
     <div class="meta" id="details"></div>
-    <div class="tiny" id="tiny"></div>
   </div>
 
   <script>
     const TZ = "Australia/Brisbane";
     const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
-    // Worldwide dates, anchored as UTC date markers
-    const ECLIPSES = [
-      { date: "2026-02-17", kind: "Solar", subtype: "Annular" },
-      { date: "2026-03-03", kind: "Lunar", subtype: "Total" },     // Mar 2–3, anchored to Mar 3
-      { date: "2026-08-12", kind: "Solar", subtype: "Total" },
-      { date: "2026-08-28", kind: "Lunar", subtype: "Partial" }    // Aug 27–28, anchored to Aug 28
+    // Only eclipses visible from Brisbane
+    const ECLIPSES_VISIBLE_BRISBANE = [
+      { date: "2026-03-03", kind: "Lunar", subtype: "Total", note: "Fully visible in Brisbane" }
+      // Future Brisbane-visible eclipses can be added here later
     ];
 
     function getYMDInTZ(date, timeZone) {
@@ -114,18 +105,22 @@
       const { y, m, d } = getYMDInTZ(now, TZ);
       const todayUTCNoon = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
 
-      const upcoming = ECLIPSES.map(e => {
+      const upcoming = ECLIPSES_VISIBLE_BRISBANE.map(e => {
         const dateObj = parseISODateToUTCNoon(e.date);
         return { ...e, dateObj, inDays: daysUntil(todayUTCNoon, dateObj) };
-      }).filter(e => e.inDays >= 0).sort((a,b) => a.dateObj - b.dateObj);
+      })
+      .filter(e => e.inDays >= 0)
+      .sort((a, b) => a.dateObj - b.dateObj);
 
       const nextOverall = upcoming[0];
       const nextSolar = upcoming.find(e => e.kind === "Solar");
       const nextLunar = upcoming.find(e => e.kind === "Lunar");
 
       if (!nextOverall) {
-        document.getElementById("headline").innerText = "No upcoming eclipses in this list";
-        document.getElementById("details").innerText = "Add next year’s eclipse dates when you’re ready.";
+        document.getElementById("headline").innerText =
+          "No Brisbane-visible eclipses listed";
+        document.getElementById("details").innerText =
+          "Update this list when new eclipses approach.";
       } else {
         document.getElementById("headline").innerText =
           "Next: " + nextOverall.subtype + " " + nextOverall.kind + " Eclipse";
@@ -133,33 +128,25 @@
         const lines = [];
         lines.push("Date: " + fmtDateInTZ(nextOverall.dateObj));
         lines.push("In: " + nextOverall.inDays + " days");
+        if (nextOverall.note) lines.push("Note: " + nextOverall.note);
 
         if (nextSolar) {
           lines.push("");
           lines.push("Next Solar: " + nextSolar.subtype);
           lines.push("Date: " + fmtDateInTZ(nextSolar.dateObj) + " · " + nextSolar.inDays + " days");
+        } else {
+          lines.push("");
+          lines.push("Next Solar: none visible from Brisbane");
         }
 
-        if (nextLunar) {
+        if (nextLunar && nextLunar !== nextOverall) {
           lines.push("");
           lines.push("Next Lunar: " + nextLunar.subtype);
           lines.push("Date: " + fmtDateInTZ(nextLunar.dateObj) + " · " + nextLunar.inDays + " days");
         }
 
-        lines.push("");
-        lines.push("Visibility varies by location");
-
         document.getElementById("details").innerText = lines.join("\n");
       }
-
-      document.getElementById("tiny").innerText =
-        new Intl.DateTimeFormat("en-AU", {
-          timeZone: TZ,
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric"
-        }).format(now) + " · " + TZ;
     })();
   </script>
 </body>
